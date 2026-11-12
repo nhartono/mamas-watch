@@ -1,0 +1,42 @@
+name: Mama's Fish House watcher
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+    inputs:
+      test:
+        description: "Send a test email"
+        type: boolean
+        default: true
+
+concurrency:
+  group: mamas-watch
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Load memory of openings already emailed
+        uses: actions/cache@v4
+        with:
+          path: |
+            mamas_watch_seen.json
+            mamas_watch_failures.txt
+          key: mamas-state-${{ github.run_id }}
+          restore-keys: mamas-state-
+
+      - name: Check for tables
+        env:
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.test }}" = "true" ]; then
+            python3 watch.py --test
+          else
+            python3 watch.py
+          fi
